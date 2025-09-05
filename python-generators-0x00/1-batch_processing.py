@@ -1,5 +1,5 @@
 from mysql.connector import Error
-from seed import connect_to_prodev, TABLE_NAME
+from seed import connect_to_prodev
 
 """
 Create a generator to fetch and process data in batches from the users database
@@ -18,7 +18,7 @@ def stream_users_in_batches(batch_size):
 
     try:
         cursor = connection.cursor(dictionary=True)
-        cursor.execute(f"SELECT * FROM {TABLE_NAME}")
+        cursor.execute(f"SELECT * FROM user_data")
 
         while True:
             batch = cursor.fetchmany(batch_size)
