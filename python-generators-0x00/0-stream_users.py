@@ -7,7 +7,7 @@ Your function should have no more than 1 loop
 """
 
 from mysql.connector import Error
-from seed import connect_to_prodev, TABLE_NAME, connect_db
+from seed import connect_to_prodev, TABLE_NAME
 
 def stream_users():
     """Generator that streams rows from the user_data table one by one."""
