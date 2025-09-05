@@ -33,7 +33,7 @@ wait_random = __import__('0-basic_async_syntax').wait_random
 print(asyncio.run(wait_random()))
 print(asyncio.run(wait_random(5)))
 print(asyncio.run(wait_random(15)))
-vagrant@ubuntu-bionic:/vagrant/holberton_development/curriculum-specialization-backend/0x01-Python_async_function$ ./0-main.py
+vagrant@ubuntu-bionic:/vagrant/holberton_development/curriculum-specialization-backend/0x01-Python_async_function$ ./0-0-main.py
 9.034261504534394
 1.6216525464615306
 10.634589756751769
