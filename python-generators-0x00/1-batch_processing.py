@@ -1,3 +1,6 @@
+from mysql.connector import Error
+from seed import connect_to_prodev, TABLE_NAME
+
 """
 Create a generator to fetch and process data in batches from the users database
 
@@ -5,9 +8,6 @@ Write a function stream_users_in_batches(batch_size) that fetches rows in batche
 
 Write a function batch_processing() that processes each batch to filter users over the age of25`
 """
-
-from mysql.connector import Error
-from seed import connect_to_prodev, TABLE_NAME
 
 def stream_users_in_batches(batch_size):
     """Generator that streams rows from the user_data table in batches."""
