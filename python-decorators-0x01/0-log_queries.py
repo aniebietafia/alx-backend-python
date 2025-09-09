@@ -1,0 +1,87 @@
+import sqlite3
+import functools
+import os
+import uuid
+
+
+# --- Database Setup ---
+def setup_database():
+    """Sets up a simple SQLite database for demonstration."""
+    db_file = 'users.db'
+    if os.path.exists(db_file):
+        os.remove(db_file)
+
+    conn = sqlite3.connect(db_file)
+    cursor = conn.cursor()
+
+    # Create a users table
+    cursor.execute('''
+                   CREATE TABLE users
+                   (
+                       id    ,
+                       name  TEXT NOT NULL,
+                       email TEXT NOT NULL UNIQUE
+                   )
+                   ''')
+
+    # Insert some sample data
+    users_to_insert = [
+        ('Alice', 'alice@example.com'),
+        ('Bob', 'bob@example.com'),
+        ('Charlie', 'charlie@example.com')
+    ]
+    cursor.executemany('INSERT INTO users (name, email) VALUES (?, ?)', users_to_insert)
+
+    conn.commit()
+    conn.close()
+    print("Database 'users.db' created and populated.")
+
+
+def log_queries(func):
+    """
+    Decorator that logs the SQL query string of the decorated function
+    before executing it.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        query = kwargs.get('query') or (args[0] if args else None)
+
+        if query:
+            print(f"LOG: Executing query: \"{query}\"")
+        else:
+            print("LOG: No query provided. Log skipped.")
+
+        return func(*args, **kwargs)
+    return wrapper
+
+@log_queries
+def fetch_all_users(query):
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    cursor.execute(query)
+    results = cursor.fetchall()
+    conn.close()
+    return results
+
+
+if __name__ == "__main__":
+    # 1. Set up the database first
+    setup_database()
+
+    print("\n" + "=" * 30)
+    print("Fetching all users...")
+    print("=" * 30)
+
+    # 2. Fetch users while logging the query
+    users = fetch_all_users(query="SELECT * FROM users")
+
+    print("\n--- Query Results ---")
+    for user in users:
+        print(user)
+    print("---------------------\n")
+
+    # Clean up the created database file after the script runs
+    if os.path.exists('users.db'):
+        os.remove('users.db')
+        print("Cleaned up 'users.db'.")
