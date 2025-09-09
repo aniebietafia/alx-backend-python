@@ -18,7 +18,7 @@ def setup_database():
     cursor.execute('''
                    CREATE TABLE users
                    (
-                       id    TEXT PRIMARY KEY,
+                       id    INTEGER PRIMARY KEY AUTOINCREMENT,
                        name  TEXT NOT NULL,
                        email TEXT NOT NULL UNIQUE
                    )
@@ -26,11 +26,11 @@ def setup_database():
 
     # Insert some sample data
     users_to_insert = [
-        (str(uuid.uuid4()), 'Alice', 'alice@example.com'),
-        (str(uuid.uuid4()), 'Bob', 'bob@example.com'),
-        (str(uuid.uuid4()), 'Charlie', 'charlie@example.com')
+        ('Alice', 'alice@example.com'),
+        ('Bob', 'bob@example.com'),
+        ('Charlie', 'charlie@example.com')
     ]
-    cursor.executemany('INSERT INTO users (id, name, email) VALUES (?, ?, ?)', users_to_insert)
+    cursor.executemany('INSERT INTO users (name, email) VALUES (?, ?)', users_to_insert)
 
     conn.commit()
     conn.close()
