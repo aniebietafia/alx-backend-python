@@ -1,6 +1,7 @@
 import sqlite3
 import functools
 import os
+from datetime import datetime
 
 from db_setup import setup_database_log_queries
 
@@ -15,7 +16,7 @@ def log_queries(func):
         query = kwargs.get('query') or (args[0] if args else None)
 
         if query:
-            print(f"LOG: Executing query: \"{query}\"")
+            print(print(f"LOG [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]: Executing query: \"{query}\""))
         else:
             print("LOG: No query provided. Log skipped.")
 
