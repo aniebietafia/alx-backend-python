@@ -2,32 +2,7 @@ import sqlite3
 import functools
 import os
 
-
-def setup_database():
-    """Sets up a simple database for the example."""
-    db_file = 'users.db'
-    if os.path.exists(db_file):
-        os.remove(db_file)
-
-    conn = sqlite3.connect(db_file)
-    cursor = conn.cursor()
-    cursor.execute('''
-                   CREATE TABLE users
-                   (
-                       id    INTEGER PRIMARY KEY AUTOINCREMENT,
-                       name  TEXT NOT NULL,
-                       email TEXT NOT NULL UNIQUE
-                   )
-                   ''')
-    users_to_insert = [
-        ('Alice', 'alice@example.com'),
-        ('Bob', 'bob@example.com')
-    ]
-    cursor.executemany('INSERT INTO users (name, email) VALUES (?, ?)', users_to_insert)
-    conn.commit()
-    conn.close()
-    print("Database 'users.db' created for demonstration.")
-    return users_to_insert
+from db_setup import setup_database_transactional
 
 
 def with_db_connection(func):
@@ -100,14 +75,14 @@ def get_user_by_id(conn, user_id):
 
 # --- Main Execution Block ---
 if __name__ == "__main__":
-    inserted_users = setup_database()
+    inserted_users = setup_database_transactional()
     user_to_update_id = 1
     existing_email = 'alice@example.com'
 
     # --- 1. Successful Transaction (COMMIT) ---
     print("\n--- Testing a successful transaction (COMMIT) ---")
     print(f"Before update: {get_user_by_id(user_id=user_to_update_id)}")
-    update_user_email(user_id=user_to_update_id, new_email='alice_new@example.com')
+    update_user_email(user_id=user_to_update_id, new_email='Crawford_Cartwright@hotmail.com')
     print(f"After update: {get_user_by_id(user_id=user_to_update_id)}")
 
     # --- 2. Failed Transaction (ROLLBACK) ---

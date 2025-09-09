@@ -1,40 +1,8 @@
 import sqlite3
 import functools
 import os
-import uuid
 
-
-# --- Database Setup ---
-def setup_database():
-    """Sets up a simple SQLite database for demonstration."""
-    db_file = 'users.db'
-    if os.path.exists(db_file):
-        os.remove(db_file)
-
-    conn = sqlite3.connect(db_file)
-    cursor = conn.cursor()
-
-    # Create a users table
-    cursor.execute('''
-                   CREATE TABLE users
-                   (
-                       id    INTEGER PRIMARY KEY AUTOINCREMENT,
-                       name  TEXT NOT NULL,
-                       email TEXT NOT NULL UNIQUE
-                   )
-                   ''')
-
-    # Insert some sample data
-    users_to_insert = [
-        ('Alice', 'alice@example.com'),
-        ('Bob', 'bob@example.com'),
-        ('Charlie', 'charlie@example.com')
-    ]
-    cursor.executemany('INSERT INTO users (name, email) VALUES (?, ?)', users_to_insert)
-
-    conn.commit()
-    conn.close()
-    print("Database 'users.db' created and populated.")
+from db_setup import setup_database_connection
 
 def with_db_connection(func):
     """
@@ -68,7 +36,7 @@ def get_user_by_id(conn, user_id):
 # --- Main Execution Block ---
 if __name__ == "__main__":
     # 1. Set up the database first
-    setup_database()
+    setup_database_connection()
 
     # 2. Fetch a user by ID with automatic connection handling
     user = get_user_by_id(user_id=1)

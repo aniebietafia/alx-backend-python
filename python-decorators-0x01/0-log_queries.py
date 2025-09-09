@@ -1,41 +1,8 @@
 import sqlite3
 import functools
 import os
-import uuid
 
-
-# --- Database Setup ---
-def setup_database():
-    """Sets up a simple SQLite database for demonstration."""
-    db_file = 'users.db'
-    if os.path.exists(db_file):
-        os.remove(db_file)
-
-    conn = sqlite3.connect(db_file)
-    cursor = conn.cursor()
-
-    # Create a users table
-    cursor.execute('''
-                   CREATE TABLE users
-                   (
-                       id    TEXT PRIMARY KEY,
-                       name  TEXT NOT NULL,
-                       email TEXT NOT NULL UNIQUE
-                   )
-                   ''')
-
-    # Insert some sample data
-    users_to_insert = [
-        (str(uuid.uuid4()), 'Alice', 'alice@example.com'),
-        (str(uuid.uuid4()), 'Bob', 'bob@example.com'),
-        (str(uuid.uuid4()), 'Charlie', 'charlie@example.com')
-    ]
-    cursor.executemany('INSERT INTO users (id, name, email) VALUES (?, ?, ?)', users_to_insert)
-
-    conn.commit()
-    conn.close()
-    print("Database 'users.db' created and populated.")
-
+from db_setup import setup_database_log_queries
 
 def log_queries(func):
     """
@@ -67,7 +34,7 @@ def fetch_all_users(query):
 
 if __name__ == "__main__":
     # 1. Set up the database first
-    setup_database()
+    setup_database_log_queries()
 
     print("\n" + "=" * 30)
     print("Fetching all users...")
