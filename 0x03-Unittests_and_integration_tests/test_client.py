@@ -20,18 +20,15 @@ class TestGithubOrgClient(unittest.TestCase):
         client = GithubOrgClient(org_name)
         client.org()
         mock_get_json.assert_called_once_with(
-            f"https://api.github.com/orgs/{org_name}")
+            f"https://api.github.com/orgs/{org_name}"
+        )
 
     def test_public_repos_url(self):
         """Test that the result of _public_repos_url is correct."""
         with patch(
                 'client.GithubOrgClient.org',
                 new_callable=PropertyMock) as mock_org:
-
-            payload = {
-                "repos_url": "https://api.github.com/orgs/google/repos"
-            }
-
+            payload = {"repos_url": "https://api.github.com/orgs/google/repos"}
             mock_org.return_value = payload
             client = GithubOrgClient("google")
             self.assertEqual(client._public_repos_url, payload["repos_url"])
@@ -42,14 +39,11 @@ class TestGithubOrgClient(unittest.TestCase):
         json_payload = [{"name": "repo1"}, {"name": "repo2"}]
         mock_get_json.return_value = json_payload
 
-        with (patch(
+        with patch(
                 'client.GithubOrgClient._public_repos_url',
-                new_callable=PropertyMock) as mock_public_repos_url):
-
+                new_callable=PropertyMock) as mock_public_repos_url:
             mock_public_repos_url.return_value = "https://api.github.com/orgs/google/repos"
-
             client = GithubOrgClient("google")
-
             repos = client.public_repos()
             self.assertEqual(repos, ["repo1", "repo2"])
             mock_public_repos_url.assert_called_once()
@@ -61,8 +55,7 @@ class TestGithubOrgClient(unittest.TestCase):
     ])
     def test_has_license(self, repo, license_key, expected):
         """Test the has_license static method."""
-        self.assertEqual(GithubOrgClient.has_license(
-            repo, license_key), expected)
+        self.assertEqual(GithubOrgClient.has_license(repo, license_key), expected)
 
 
 @parameterized_class(
@@ -102,5 +95,4 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
     def test_public_repos_with_license(self):
         """Test public_repos method with license filter."""
         client = GithubOrgClient("google")
-        self.assertEqual(client.public_repos(
-            license="apache-2.0"), self.apache2_repos)
+        self.assertEqual(client.public_repos(license="apache-2.0"), self.apache2_repos)
