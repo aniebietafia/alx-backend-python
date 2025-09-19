@@ -7,8 +7,8 @@ class UserSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'email', 'phone_number', 'role']
-        read_only_fields = ['id', 'role']
+        fields = ['user_id', 'first_name', 'last_name', 'email', 'phone_number', 'role']
+        read_only_fields = ['user_id', 'role']
 
 class MessageSerializer(serializers.ModelSerializer):
     """
@@ -22,8 +22,8 @@ class MessageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Message
-        fields = ['id', 'conversation', 'sender', 'message_body', 'sent_at']
-        read_only_fields = ['id', 'sent_at', 'conversation']
+        fields = ['message_id', 'conversation', 'sender', 'message_body', 'sent_at']
+        read_only_fields = ['message_id', 'sent_at', 'conversation']
 
 class ConversationSerializer(serializers.ModelSerializer):
     """
@@ -35,4 +35,5 @@ class ConversationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Conversation
-        read_only_fields = ['id', 'participants', 'messages', 'created_at']
+        fields = ['conversation_id', 'participants', 'messages', 'created_at']
+        read_only_fields = ['conversation_id', 'participants', 'messages', 'created_at']
