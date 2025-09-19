@@ -3,8 +3,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from messaging_app.chats.models import User, Conversation, Message
-from messaging_app.chats.serializers import ConversationSerializer, MessageSerializer
+from .models import User, Conversation, Message
+from .serializers import ConversationSerializer, MessageSerializer
 
 
 # Create your views here.
