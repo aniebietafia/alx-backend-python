@@ -57,7 +57,7 @@ class TestMemoize(unittest.TestCase):
             returned but a_method is only called once using assert_called_once
         """
         class TestClass:
-            """ class """
+            """class"""
             def a_method(self):
                 """ method  """
                 return 42
