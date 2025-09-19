@@ -17,7 +17,7 @@ This repository contains a collection of Python projects developed as part of th
    - Key Concepts: Asyncio, Context Managers
    - [Project Code](./python-context-async-perations-0x02)
 
-4. **Project 3: Unittests and Integation Tests**
+4. **Project 3: Unittests and Integration Tests**
    - Description: Write unit tests and integration tests for a sample code in `utils.py` and `clients.py`.
    - Key Concepts: Unittest, Integration Testing
    - [Project Code](./0x03-Unittests_and_integration_tests)
