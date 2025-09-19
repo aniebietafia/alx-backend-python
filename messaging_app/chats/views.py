@@ -1,21 +1,22 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, filters
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import User, Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
-
-
-# Create your views here.
 
 class ConversationViewSet(viewsets.ModelViewSet):
     """
     ViewSet for listing and creating conversations.
     """
-
     serializer_class = ConversationSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['participants__email']
+    ordering_fields = ['created_at']
+    ordering = ['-created_at']
 
     def get_queryset(self):
         """
@@ -60,19 +61,22 @@ class MessageViewSet(viewsets.ModelViewSet):
     """
     ViewSet for listing and creating messages within a conversation.
     """
-
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['message_body', 'sender__email']
+    ordering_fields = ['sent_at']
+    ordering = ['sent_at']
 
     def get_queryset(self):
         """
         Filter messages by a `conversation_id` from the URL.
         Ensures user is a participant of the conversation.
         """
-        conversation_id = self.kwargs.get('conversation_id')
-        if conversation_id:
+        conversation_pk = self.kwargs.get('conversation_pk')
+        if conversation_pk:
             return Message.objects.filter(
-                conversation_id=conversation_id,
+                conversation__conversation_id=conversation_pk,
                 conversation__participants=self.request.user
             )
         return Message.objects.none()
@@ -81,9 +85,9 @@ class MessageViewSet(viewsets.ModelViewSet):
         """
         Set the sender of the message to the current authenticated user.
         """
-        conversation_id = self.kwargs.get('conversation_id')
+        conversation_pk = self.kwargs.get('conversation_pk')
         try:
-            conversation = Conversation.objects.get(id=conversation_id)
+            conversation = Conversation.objects.get(conversation_id=conversation_pk)
         except Conversation.DoesNotExist:
             raise ValidationError("Conversation does not exist.")
 
