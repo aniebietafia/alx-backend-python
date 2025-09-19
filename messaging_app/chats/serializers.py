@@ -15,12 +15,15 @@ class MessageSerializer(serializers.ModelSerializer):
     Serializer for the Message model.
     The sender is represented by their email address.
     """
-    sender = serializers.SlugRelatedField()
+    sender = serializers.SlugRelatedField(
+        read_only=True,
+        slug_field='email'
+    )
 
     class Meta:
         model = Message
         fields = ['id', 'conversation', 'sender', 'message_body', 'sent_at']
-        read_only_fields = ['id', 'sent_at']
+        read_only_fields = ['id', 'sent_at', 'conversation']
 
 class ConversationSerializer(serializers.ModelSerializer):
     """
@@ -32,4 +35,4 @@ class ConversationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Conversation
-        read_only_fields = ['id', 'created_at', 'messages', 'participants']
+        read_only_fields = ['id', 'participants', 'messages', 'created_at']
