@@ -24,13 +24,12 @@ class TestGithubOrgClient(unittest.TestCase):
 
     def test_public_repos_url(self):
         """Test that the result of _public_repos_url is correct."""
+        with patch('client.GithubOrgClient.org', new_callable=PropertyMock) as mock_org:
 
-        target = "client.GithubOrgClient._public_repos_url"
-        with patch(target, new_callable=PropertyMock) as mock_org:
-            repo_url = "https://api.github.com/orgs/google/repos"
             payload = {
-                "repos_url": repo_url
+                "repos_url": "https://api.github.com/orgs/google/repos"
             }
+
             mock_org.return_value = payload
             client = GithubOrgClient("google")
             self.assertEqual(client._public_repos_url, payload["repos_url"])
@@ -41,12 +40,13 @@ class TestGithubOrgClient(unittest.TestCase):
         json_payload = [{"name": "repo1"}, {"name": "repo2"}]
         mock_get_json.return_value = json_payload
 
-        target = 'client.GithubOrgClient._public_repos_url'
-        with (patch(target, new_callable=PropertyMock) as mock_public_repos_url):
-            public_repo = "https://api.github.com/orgs/google/repos"
-            mock_public_repos_url.return_value = public_repo
+        with patch(
+                'client.GithubOrgClient._public_repos_url',
+                   new_callable=PropertyMock) as mock_public_repos_url:
 
+            mock_public_repos_url.return_value = "https://api.github.com/orgs/google/repos"
             client = GithubOrgClient("google")
+
             repos = client.public_repos()
             self.assertEqual(repos, ["repo1", "repo2"])
             mock_public_repos_url.assert_called_once()
@@ -58,12 +58,14 @@ class TestGithubOrgClient(unittest.TestCase):
     ])
     def test_has_license(self, repo, license_key, expected):
         """Test the has_license static method."""
-        value = GithubOrgClient.has_license(repo, license_key)
-        self.assertEqual(value, expected)
+        self.assertEqual(GithubOrgClient.has_license(
+            repo, license_key), expected)
 
 
-@parameterized_class(("org_payload", "repos_payload",
-                      "expected_repos", "apache2_repos"), TEST_PAYLOAD)
+@parameterized_class(
+    ("org_payload", "repos_payload", "expected_repos", "apache2_repos"),
+    TEST_PAYLOAD
+)
 class TestIntegrationGithubOrgClient(unittest.TestCase):
     """Integration tests for the GithubOrgClient class."""
 
