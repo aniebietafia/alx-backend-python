@@ -42,7 +42,8 @@ class TestGithubOrgClient(unittest.TestCase):
         with patch(
                 'client.GithubOrgClient._public_repos_url',
                 new_callable=PropertyMock) as mock_public_repos_url:
-            mock_public_repos_url.return_value = "https://api.github.com/orgs/google/repos"
+            url = "https://api.github.com/orgs/google/repos"
+            mock_public_repos_url.return_value = f"{url}"
             client = GithubOrgClient("google")
             repos = client.public_repos()
             self.assertEqual(repos, ["repo1", "repo2"])
@@ -55,7 +56,10 @@ class TestGithubOrgClient(unittest.TestCase):
     ])
     def test_has_license(self, repo, license_key, expected):
         """Test the has_license static method."""
-        self.assertEqual(GithubOrgClient.has_license(repo, license_key), expected)
+        self.assertEqual(
+            GithubOrgClient.has_license(repo, license_key),
+            expected
+        )
 
 
 @parameterized_class(
@@ -95,4 +99,6 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
     def test_public_repos_with_license(self):
         """Test public_repos method with license filter."""
         client = GithubOrgClient("google")
-        self.assertEqual(client.public_repos(license="apache-2.0"), self.apache2_repos)
+        self.assertEqual(
+            client.public_repos(license="apache-2.0"), self.apache2_repos
+        )
