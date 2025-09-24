@@ -6,13 +6,14 @@ from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import User, Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
+from .permissions import IsOwnerOrParticipant, IsConversationParticipant
 
 class ConversationViewSet(viewsets.ModelViewSet):
     """
     ViewSet for listing and creating conversations.
     """
     serializer_class = ConversationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOwnerOrParticipant]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['participants__email']
     ordering_fields = ['created_at']
@@ -62,7 +63,7 @@ class MessageViewSet(viewsets.ModelViewSet):
     ViewSet for listing and creating messages within a conversation.
     """
     serializer_class = MessageSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsConversationParticipant]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['message_body', 'sender__email']
     ordering_fields = ['sent_at']
