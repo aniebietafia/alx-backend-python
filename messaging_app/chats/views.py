@@ -117,6 +117,9 @@ class MessageViewSet(viewsets.ModelViewSet):
             raise ValidationError("Conversation does not exist.")
 
         if self.request.user not in conversation.participants.all():
-            raise ValidationError("You are not a participant of this conversation.")
+            return Response(
+                {"error": "You are not a participant of this conversation."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         serializer.save(sender=self.request.user, conversation=conversation)
