@@ -6,14 +6,19 @@ from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import User, Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
-from .permissions import IsOwnerOrParticipant, IsConversationParticipant
+from .permissions import (
+    IsParticipantOfConversation,
+    IsMessageSenderOrParticipant,
+    IsOwnerOrParticipant
+)
+
 
 class ConversationViewSet(viewsets.ModelViewSet):
     """
     ViewSet for listing and creating conversations.
     """
     serializer_class = ConversationSerializer
-    permission_classes = [IsAuthenticated, IsOwnerOrParticipant]
+    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['participants__email']
     ordering_fields = ['created_at']
@@ -58,12 +63,26 @@ class ConversationViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(conversation)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    def get_permissions(self):
+        """
+        Instantiates and returns the list of permissions that this view requires.
+        """
+        if self.action == 'create':
+            # Only authenticated users can create conversations
+            permission_classes = [IsAuthenticated]
+        else:
+            # For other actions, check if user is participant
+            permission_classes = [IsAuthenticated, IsParticipantOfConversation]
+
+        return [permission() for permission in permission_classes]
+
+
 class MessageViewSet(viewsets.ModelViewSet):
     """
     ViewSet for listing and creating messages within a conversation.
     """
     serializer_class = MessageSerializer
-    permission_classes = [IsAuthenticated, IsConversationParticipant]
+    permission_classes = [IsAuthenticated, IsMessageSenderOrParticipant]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['message_body', 'sender__email']
     ordering_fields = ['sent_at']
