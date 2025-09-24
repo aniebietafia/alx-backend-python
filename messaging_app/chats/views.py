@@ -9,8 +9,9 @@ from .serializers import ConversationSerializer, MessageSerializer
 from .permissions import (
     IsParticipantOfConversation,
     IsMessageSenderOrParticipant,
-    IsOwnerOrParticipant
 )
+from .filters import MessageFilter, ConversationFilter
+from .pagination import MessagePagination, ConversationPagination
 
 
 class ConversationViewSet(viewsets.ModelViewSet):
@@ -20,16 +21,18 @@ class ConversationViewSet(viewsets.ModelViewSet):
     serializer_class = ConversationSerializer
     permission_classes = [IsAuthenticated, IsParticipantOfConversation]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['participants__email']
-    ordering_fields = ['created_at']
+    filterset_class = ConversationFilter
+    search_fields = ['participants__email', 'participants__first_name', 'participants__last_name']
+    ordering_fields = ['created_at', 'participants__email']
     ordering = ['-created_at']
+    pagination_class = ConversationPagination
 
     def get_queryset(self):
         """
         This view should return a list of all the conversations
         for the currently authenticated user.
         """
-        return Conversation.objects.filter(participants=self.request.user)
+        return Conversation.objects.filter(participants=self.request.user).distinct()
 
     def create(self, request, *args, **kwargs):
         """
@@ -84,9 +87,11 @@ class MessageViewSet(viewsets.ModelViewSet):
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated, IsMessageSenderOrParticipant]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['message_body', 'sender__email']
-    ordering_fields = ['sent_at']
+    filterset_class = MessageFilter
+    search_fields = ['message_body', 'sender__email', 'sender__first_name', 'sender__last_name']
+    ordering_fields = ['sent_at', 'sender__email']
     ordering = ['sent_at']
+    pagination_class = MessagePagination
 
     def get_queryset(self):
         """
@@ -98,7 +103,7 @@ class MessageViewSet(viewsets.ModelViewSet):
             return Message.objects.filter(
                 conversation__conversation_id=conversation_pk,
                 conversation__participants=self.request.user
-            )
+            ).select_related('sender', 'conversation')
         return Message.objects.none()
 
     def perform_create(self, serializer):
