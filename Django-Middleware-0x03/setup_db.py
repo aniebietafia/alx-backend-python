@@ -1,4 +1,4 @@
-# messaging_app/setup_db.py
+# Django-Middleware-0x03/setup_db.py
 import os
 import mysql.connector
 from mysql.connector import errorcode

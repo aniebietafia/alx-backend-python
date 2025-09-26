@@ -117,7 +117,7 @@ class OffensiveLanguageMiddleware:
         return rate_data['count'] > self.max_messages
 
 
-class RolePermissionMiddleware:
+class RolepermissionMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
