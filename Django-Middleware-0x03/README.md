@@ -27,3 +27,13 @@
 
     * if a user accesses the chat outside 9PM and 6PM.
 * Update the settings.py with the middleware.
+
+## Task 3: Detect and Block offensive Language
+**Objective**: Implement middleware that limits the number of chat messages a user can send within a certain time window, based on their IP address.
+
+**Instructions**:
+
+* Create the middleware class OffensiveLanguageMiddleware with two methods, `__init__`and`__call__`. that tracks number of chat messages sent by each ip address and implement a time based limit i.e 5 messages per minutes such that if a user exceeds the limit, it blocks further messaging and returns and error
+    * use the `__call__method` to count the number of POST requests (messages) from each IP address.
+    * Implement a time window (e.g., 1 minute) during which a user can only send a limited number of messages.
+* Ensure the middleware is added to theMIDDLEWARE setting in the settings.py

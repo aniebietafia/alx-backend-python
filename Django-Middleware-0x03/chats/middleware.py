@@ -1,6 +1,8 @@
 import logging
+import time
 from datetime import datetime
 
+from django.core.cache import cache
 from django.http import JsonResponse
 
 # Configure logger with more specific settings
@@ -55,4 +57,62 @@ class RestrictAccessByTimeMiddleware:
         """
         chat_paths = ['/api/conversations/', '/api/messages/']
         return any(request.path.startswith(path) for path in chat_paths)
+
+
+class OffensiveLanguageMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.max_messages = 5  # Maximum messages per time window
+        self.time_window = 60  # Time window in seconds (1 minute)
+
+    def __call__(self, request):
+        # Check if it's a POST request to chat endpoints
+        if request.method == 'POST' and self.is_chat_request(request):
+            client_ip = self.get_client_ip(request)
+
+            # Check rate limit for this IP
+            if self.is_rate_limited(client_ip):
+                return JsonResponse(
+                    {'error': 'Rate limit exceeded. You can only send 5 messages per minute.'},
+                    status=429
+                )
+
+        response = self.get_response(request)
+        return response
+
+    def get_client_ip(self, request):
+        """Extract client IP address from request."""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
+
+    def is_chat_request(self, request):
+        """Check if the request is related to chat functionality."""
+        chat_paths = ['/api/conversations/', '/api/messages/']
+        return any(request.path.startswith(path) for path in chat_paths)
+
+    def is_rate_limited(self, ip_address):
+        """Check if IP has exceeded rate limit and update counter."""
+        cache_key = f"rate_limit_{ip_address}"
+        current_time = time.time()
+
+        # Get existing data from cache
+        rate_data = cache.get(cache_key, {'count': 0, 'window_start': current_time})
+
+        # Check if we're still in the same time window
+        if current_time - rate_data['window_start'] > self.time_window:
+            # Reset counter for new time window
+            rate_data = {'count': 1, 'window_start': current_time}
+        else:
+            # Increment counter in current window
+            rate_data['count'] += 1
+
+        # Update cache
+        cache.set(cache_key, rate_data, timeout=self.time_window + 10)
+
+        # Return True if rate limit exceeded
+        return rate_data['count'] > self.max_messages
 
