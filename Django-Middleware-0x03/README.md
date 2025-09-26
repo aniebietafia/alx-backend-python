@@ -1,67 +1,29 @@
-# Project Objectives
-By the end of this project, learners will be able to:
+## Middleware Best Practices
+* Keep middleware functions small and focused — avoid bloating a single middleware with multiple responsibilities.
+* Chain logic properly — always call `get_response(request)` unless rejecting the request early.
+* Use Django’s `request.user`, `request.path`, and `request.method` for clean conditional logic.
+* Avoid database-heavy logic in middleware to maintain performance.
+* Use logging middleware responsibly — log minimal and relevant data to avoid clutter.
+* Write unit tests for middleware behavior and edge cases.
+* Document each middleware clearly — what it does, why it exists, and where it sits in the stack.
 
-* Scaffold a Django project using industry-standard project structures.
-* Identify, define, and implement scalable data models using Django’s ORM.
-* Establish one-to-many, many-to-many, and one-to-one relationships between models.
-* Create clean and modular Django apps.
-* Set up and configure URL routing for APIs using Django’s path and include functions.
-* Follow best practices in file structure, code organization, and documentation.
-* Build a maintainable API layer using Django REST Framework (optional enhancement).
-* Validate and test APIs with real data using tools like Postman or Swagger.
+## Task 1: Logging User Requests(Basic Middleware)
+**Objective**: Create a middleware that logs each user’s requests to a file, including the timestamp, user and the request path.
 
-## Key Implementation Phases
-1. Project Setup and Environment Configuration
-    - Create a virtual environment
-    - Install Django
-    - Scaffold the project with django-admin startproject and python manage.py startapp
-    - Configure settings.py (INSTALLED_APPS, middleware, CORS, etc.)
+**Instructions**: - create a file `middleware.py` and Create the middleware class `RequestLoggingMiddleware` with two methods, `__init__`and `__call__`.
 
-2. Defining Data Models
+* In the `__call__` implement a logger that log’s the following information `f"{datetime.now()} - User: {user} - Path: {request.path}“`
 
-    - Identify core models based on requirements (e.g., User, Property, Booking)
+* Configure the Middleware section in the `settings.py` with your newly created middleware
 
-    - Use Django ORM to define model classes
+* Run the server to test it out. python manage.py runserver
 
-    - Add field types, constraints, and default behaviors
+## Task 2: Restrict Chat Access by time
+**Objective**: implement a middleware that restricts access to the messaging up during certain hours of the day
 
-    - Apply migrations and use Django Admin for verification
+**Instructions**:
 
-3. Establishing Relationships
+* Create a middleware class RestrictAccessByTimeMiddleware with two methods, __init__and__call__. that check the current server time and deny access by returning an error 403 Forbidden
 
-    - Implement foreign keys, many-to-many relationships, and one-to-one links
-
-    - Use related_name, on_delete, and reverse relationships effectively
-
-    - Use Django shell to test object relations
-
-4. URL Routing
-    - Define app-specific routes using urls.py
-
-    - Use include() to modularize routes per app
-
-    - Follow RESTful naming conventions: /api/properties/, /api/bookings/<id>/
-
-    - Create nested routes when necessary
-
-5. Best Practices and Documentation
-
-    - Use views.py to separate logic and ensure Single Responsibility
-
-    - Document endpoints using README or auto-generated documentation tools
-
-    - Keep configuration settings modular (e.g., using .env or settings/ directory structure)
-
-    - Use versioned APIs (e.g., /api/v1/) to future-proof development
-
-## Best Practices for Scaffolding and Structuring Projects
-| Area               | Best Practices |
-|--------------------|----------------|
-| Project Structure  | Keep a modular structure with reusable apps, consistent naming, and organized folders (apps/, core/, etc.) |
-| Environment Config | Use `.env` files and `django-environ` to manage secret keys and settings |
-| Models             | Avoid business logic in models; use helper functions or managers when necessary |
-| Migrations         | Commit migration files and test them on a fresh database |
-| Routing            | Namespace routes and separate admin/API/user-related URLs for clarity |
-| Security           | Use `ALLOWED_HOSTS`, avoid hardcoding credentials, and enable CORS properly |
-| Testing            | Use Django’s test client or tools like Postman to validate endpoints early and often
-| Documentation      | Add inline comments, maintain a clear README, and use tools like Swagger or DRF’s built-in docs |
+    * if a user accesses the chat outside 9PM and 6PM.
+* Update the settings.py with the middleware.
