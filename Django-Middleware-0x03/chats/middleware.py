@@ -8,13 +8,13 @@ from django.http import JsonResponse
 # Configure logger with more specific settings
 logger = logging.getLogger('request_logging')
 logger.setLevel(logging.INFO)
-handler = logging.FileHandler('request.log')
+handler = logging.FileHandler('requests.log')
 formatter = logging.Formatter('%(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 # Basic configuration for logging to a file
-logging.basicConfig(filename='request.log', level=logging.INFO)
+logging.basicConfig(filename='requests.log', level=logging.INFO)
 
 class RequestLoggingMiddleware:
     def __init__(self, get_response):
