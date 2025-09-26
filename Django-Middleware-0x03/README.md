@@ -37,3 +37,12 @@
     * use the `__call__method` to count the number of POST requests (messages) from each IP address.
     * Implement a time window (e.g., 1 minute) during which a user can only send a limited number of messages.
 * Ensure the middleware is added to theMIDDLEWARE setting in the settings.py
+
+## Task 4: Enforce chat user Role Permissions
+**Objective**: define a middleware that checks the user’s role i.e admin, before allowing access to specific actions
+
+**Instructions**:
+
+* Create the middleware class RolepermissionMiddleware with two methods, `__init__` and `__call__`. that checks the user’s role from the request
+* If the user is not admin or moderator, it should return error 403
+  * Ensure the middleware is added to the MIDDLEWARE setting in the settings.py

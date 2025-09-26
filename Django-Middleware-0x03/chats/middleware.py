@@ -116,3 +116,40 @@ class OffensiveLanguageMiddleware:
         # Return True if rate limit exceeded
         return rate_data['count'] > self.max_messages
 
+
+class RolePermissionMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        # Check if the request is for chat-related paths
+        if self.is_chat_request(request):
+            # Block unauthenticated users completely
+            print(f"Request Object: {request}")
+            print(f"Request User: {request.user}, Authenticated: {request.user.is_authenticated}")
+            if not request.user.is_authenticated:
+                return JsonResponse(
+                    {'error': 'Authentication required. Please login to access chat.'},
+                    status=401
+                )
+
+            # Check if authenticated user has required role permissions
+            if not self.has_required_role(request.user):
+                return JsonResponse(
+                    {'error': 'Access denied. Admin or Host role required for chat access.'},
+                    status=403
+                )
+
+        response = self.get_response(request)
+        return response
+
+    def is_chat_request(self, request):
+        """Check if the request is related to chat functionality."""
+        chat_paths = ['/api/conversations/', '/api/messages/']
+        return any(request.path.startswith(path) for path in chat_paths)
+
+    def has_required_role(self, user):
+        """Check if user has admin or host role (not guest)."""
+        from .models import User
+        allowed_roles = [User.Role.ADMIN, User.Role.HOST]
+        return user.role in allowed_roles

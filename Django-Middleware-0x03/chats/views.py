@@ -8,7 +8,7 @@ from .models import User, Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
 from .permissions import (
     IsParticipantOfConversation,
-    IsMessageSenderOrParticipant,
+    IsMessageSenderOrParticipant
 )
 from .filters import MessageFilter, ConversationFilter
 from .pagination import MessagePagination, ConversationPagination
@@ -123,3 +123,4 @@ class MessageViewSet(viewsets.ModelViewSet):
             )
 
         serializer.save(sender=self.request.user, conversation=conversation)
+        return None
