@@ -106,6 +106,7 @@ class MessageHistory(models.Model):
     history_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     message = models.ForeignKey(Message, related_name='edit_history', on_delete=models.CASCADE)
     old_content = models.TextField()
+    edited_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='edited_messages', on_delete=models.SET_NULL, null=True)
     edited_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
