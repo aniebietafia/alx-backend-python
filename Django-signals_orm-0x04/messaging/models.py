@@ -86,13 +86,16 @@ class Message(models.Model):
 class Notification(models.Model):
     notification_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_index=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='notifications', on_delete=models.CASCADE)
+    receiver = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='received_notifications', on_delete=models.CASCADE)
     message = models.ForeignKey(Message, related_name='notifications', on_delete=models.CASCADE)
     content = models.TextField()
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now=True)  # Updates on every save
 
     def __str__(self):
-        return f"Notification {self.notification_id} for {self.user.email} - {self.content[:50]}"
+        return f"Notification {self.notification_id} for {self.receiver.email} - {self.content[:50]}"
 
     class Meta:
         ordering = ['-created_at']
+
