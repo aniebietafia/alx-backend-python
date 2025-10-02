@@ -76,12 +76,14 @@ class Message(models.Model):
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='sent_messages', on_delete=models.CASCADE)
     message_body = models.TextField()
     sent_at = models.DateTimeField(auto_now_add=True)
+    edited = models.BooleanField(default=False)  # Track if message has been edited
 
     def __str__(self):
         return f"Message {self.message_id} in Conversation {self.conversation.conversation_id} by {self.sender.email}"
 
     class Meta:
         ordering = ['sent_at']
+
 
 class Notification(models.Model):
     notification_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_index=True)
@@ -99,3 +101,15 @@ class Notification(models.Model):
     class Meta:
         ordering = ['-created_at']
 
+
+class MessageHistory(models.Model):
+    history_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    message = models.ForeignKey(Message, related_name='edit_history', on_delete=models.CASCADE)
+    old_content = models.TextField()
+    edited_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"History for Message {self.message.message_id} - {self.edited_at}"
+
+    class Meta:
+        ordering = ['-edited_at']
