@@ -1,4 +1,5 @@
 from rest_framework import viewsets, status, filters
+from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -78,6 +79,35 @@ class ConversationViewSet(viewsets.ModelViewSet):
             permission_classes = [IsAuthenticated, IsParticipantOfConversation]
 
         return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['delete'], url_path='delete-account')
+    def delete_user_account(self, request):
+        """
+        Allow a user to delete their own account.
+        This will trigger the post_delete signal to clean up related data.
+        """
+        user = request.user
+
+        # Optional: Add confirmation check
+        confirmation = request.data.get('confirm_deletion', False)
+        if not confirmation:
+            return Response(
+                {"error": "Please confirm deletion by setting 'confirm_deletion' to true"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user_email = user.email
+            user.delete()  # This will trigger the post_delete signal
+            return Response(
+                {"message": f"User account {user_email} has been successfully deleted"},
+                status=status.HTTP_204_NO_CONTENT
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to delete account: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class MessageViewSet(viewsets.ModelViewSet):

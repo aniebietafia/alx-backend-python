@@ -1,7 +1,7 @@
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_save, pre_save, post_delete
 from django.dispatch import receiver
 
-from .models import Message, Notification, MessageHistory
+from .models import Message, Notification, MessageHistory, User
 
 
 @receiver(post_save, sender=Message)
@@ -36,7 +36,8 @@ def log_message_edit(sender, instance, **kwargs):
                 # Save the old content to history
                 MessageHistory.objects.create(
                     message=old_message,
-                    old_content=old_message.message_body
+                    old_content=old_message.message_body,
+                    edited_by=instance.sender  # Track who edited the message
                 )
 
                 # Mark the message as edited
@@ -45,3 +46,18 @@ def log_message_edit(sender, instance, **kwargs):
         except Message.DoesNotExist:
             # Handle case where message doesn't exist yet
             pass
+
+
+@receiver(post_delete, sender=User)
+def cleanup_user_data(sender, instance, **kwargs):
+    """
+    Signal to clean up all user-related data when a user account is deleted.
+    This handles data cleanup that isn't automatically handled by CASCADE.
+    """
+    # Delete MessageHistory entries where the user was the editor
+    # (these might not be automatically deleted if the message still exists)
+    MessageHistory.objects.filter(edited_by=instance).delete()
+
+    # Note: Messages, Notifications, and other related data with CASCADE foreign keys
+    # will be automatically deleted by Django when the user is deleted
+    # This signal handles any additional cleanup needed

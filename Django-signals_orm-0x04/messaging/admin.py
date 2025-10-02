@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, Conversation, Message, Notification
+from .models import User, Conversation, Message, Notification, MessageHistory
 
 
 @admin.register(User)
@@ -17,8 +17,8 @@ class ConversationAdmin(admin.ModelAdmin):
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ['message_id', 'conversation', 'sender', 'sent_at']
-    list_filter = ['sent_at']
+    list_display = ['message_id', 'conversation', 'sender', 'sent_at', 'edited']
+    list_filter = ['sent_at', 'edited']
     search_fields = ['message_body', 'sender__email']
 
 
@@ -27,3 +27,10 @@ class NotificationAdmin(admin.ModelAdmin):
     list_display = ['notification_id', 'user', 'message', 'is_read', 'created_at']
     list_filter = ['is_read', 'created_at']
     search_fields = ['user__email', 'content']
+
+
+@admin.register(MessageHistory)
+class MessageHistoryAdmin(admin.ModelAdmin):
+    list_display = ['history_id', 'message', 'edited_by', 'edited_at']
+    list_filter = ['edited_at']
+    search_fields = ['message__message_body', 'edited_by__email', 'old_content']
