@@ -340,19 +340,9 @@ class MessageViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Use .only() to retrieve only necessary fields for optimization
-        unread_messages = Message.objects.filter(
-            conversation=conversation,
-            receiver=request.user,
-            read=False
-        ).select_related('sender', 'conversation').only(
-            'message_id',
-            'message_body',
-            'sent_at',
-            'sender__email',
-            'sender__first_name',
-            'sender__last_name',
-            'conversation__conversation_id'
+        # Use custom manager's unread_for_user method
+        unread_messages = Message.unread.unread_for_user(request.user).filter(
+            conversation=conversation
         )
 
         serializer = MessageSerializer(unread_messages, many=True)
@@ -373,22 +363,18 @@ class MessageViewSet(viewsets.ModelViewSet):
                     conversation_id=conversation_pk,
                     participants=request.user
                 )
-                unread_count = Message.objects.filter(
-                    conversation=conversation,
-                    receiver=request.user,
-                    read=False
-                ).only('message_id').count()
+                # Use custom manager's unread_for_user method
+                unread_count = Message.unread.unread_for_user(request.user).filter(
+                    conversation=conversation
+                ).count()
             except Conversation.DoesNotExist:
                 return Response(
                     {"error": "Conversation not found"},
                     status=status.HTTP_404_NOT_FOUND
                 )
         else:
-            # Get total unread count across all conversations with .only()
-            unread_count = Message.objects.filter(
-                receiver=request.user,
-                read=False
-            ).only('message_id').count()
+            # Use custom manager's unread_count_for_user method
+            unread_count = Message.unread.unread_count_for_user(request.user)
 
         return Response({
             'unread_count': unread_count
