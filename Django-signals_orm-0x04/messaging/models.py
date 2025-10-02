@@ -38,7 +38,6 @@ class UserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 
-
 class User(AbstractUser):
     class Role(models.TextChoices):
         ADMIN = 'admin', 'Admin'
@@ -61,77 +60,6 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
-
-class Conversation(models.Model):
-    conversation_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_index=True)
-    participants = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='conversations')
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Conversation {self.conversation_id}"
-
-class Message(models.Model):
-    message_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_index=True)
-    conversation = models.ForeignKey(Conversation, related_name='messages', on_delete=models.CASCADE)
-    sender = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='sent_messages', on_delete=models.CASCADE)
-    parent_message = models.ForeignKey('self', related_name='replies', on_delete=models.CASCADE, null=True, blank=True)
-    message_body = models.TextField()
-    sent_at = models.DateTimeField(auto_now_add=True)
-    edited = models.BooleanField(default=False)
-    objects = models.Manager()
-    threaded = ThreadedMessageManager()  # Custom manager for threaded messages
-
-    def __str__(self):
-        return f"Message {self.message_id} in Conversation {self.conversation.conversation_id} by {self.sender.email}"
-
-    class Meta:
-        ordering = ['sent_at']
-
-    def is_reply(self):
-        """Check if this message is a reply to another message"""
-        return self.parent_message is not None
-
-    def get_thread_depth(self):
-        """Calculate the depth of this message in the thread"""
-        depth = 0
-        current = self.parent_message
-        while current:
-            depth += 1
-            current = current.parent_message
-        return depth
-
-
-
-class Notification(models.Model):
-    notification_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_index=True)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='notifications', on_delete=models.CASCADE)
-    receiver = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='received_notifications', on_delete=models.CASCADE)
-    message = models.ForeignKey(Message, related_name='notifications', on_delete=models.CASCADE)
-    content = models.TextField()
-    is_read = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    timestamp = models.DateTimeField(auto_now=True)  # Updates on every save
-
-    def __str__(self):
-        return f"Notification {self.notification_id} for {self.receiver.email} - {self.content[:50]}"
-
-    class Meta:
-        ordering = ['-created_at']
-
-
-class MessageHistory(models.Model):
-    history_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    message = models.ForeignKey(Message, related_name='edit_history', on_delete=models.CASCADE)
-    old_content = models.TextField()
-    edited_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='edited_messages', on_delete=models.SET_NULL, null=True)
-    edited_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"History for Message {self.message.message_id} - {self.edited_at}"
-
-    class Meta:
-        ordering = ['-edited_at']
-
 
 class ThreadedMessageManager(models.Manager):
     def get_threaded_messages(self, conversation):
@@ -198,6 +126,125 @@ class ThreadedMessageManager(models.Manager):
                 return [message]
             except self.model.DoesNotExist:
                 return []
+
+class UnreadMessagesManager(models.Manager):
+    """
+    Custom manager to filter unread messages for a specific user.
+    """
+
+    def unread_for_user(self, user):
+        """
+        Get all unread messages for a specific user where they are the receiver.
+        Uses .only() to retrieve only necessary fields for optimization.
+        """
+        return self.get_queryset().filter(
+            receiver=user,
+            read=False
+        ).select_related('sender', 'conversation').only(
+            'message_id',
+            'message_body',
+            'sent_at',
+            'sender__email',
+            'sender__first_name',
+            'sender__last_name',
+            'conversation__conversation_id'
+        )
+
+    def unread_count_for_user(self, user):
+        """
+        Get the count of unread messages for a user.
+        """
+        return self.get_queryset().filter(receiver=user, read=False).count()
+
+    def mark_as_read(self, user, message_ids=None):
+        """
+        Mark messages as read for a user.
+        If message_ids is provided, mark only those messages.
+        Otherwise, mark all unread messages for the user.
+        """
+        queryset = self.get_queryset().filter(receiver=user, read=False)
+        if message_ids:
+            queryset = queryset.filter(message_id__in=message_ids)
+        return queryset.update(read=True)
+
+class Conversation(models.Model):
+    conversation_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_index=True)
+    participants = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='conversations')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Conversation {self.conversation_id}"
+
+
+class Message(models.Model):
+    message_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_index=True)
+    conversation = models.ForeignKey(Conversation, related_name='messages', on_delete=models.CASCADE)
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='sent_messages', on_delete=models.CASCADE)
+    receiver = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='received_messages', on_delete=models.CASCADE)
+    parent_message = models.ForeignKey('self', related_name='replies', on_delete=models.CASCADE, null=True, blank=True)
+    message_body = models.TextField()
+    sent_at = models.DateTimeField(auto_now_add=True)
+    edited = models.BooleanField(default=False)
+    read = models.BooleanField(default=False)  # New field for tracking read status
+
+    objects = models.Manager()  # Default manager
+    threaded = ThreadedMessageManager()  # Custom manager for threaded messages
+    unread = UnreadMessagesManager()  # Custom manager for unread messages
+
+    def __str__(self):
+        return f"Message {self.message_id} in Conversation {self.conversation.conversation_id} by {self.sender.email}"
+
+    class Meta:
+        ordering = ['sent_at']
+
+    def is_reply(self):
+        """Check if this message is a reply to another message"""
+        return self.parent_message is not None
+
+    def get_thread_depth(self):
+        """Calculate the depth of this message in the thread"""
+        depth = 0
+        current = self.parent_message
+        while current:
+            depth += 1
+            current = current.parent_message
+        return depth
+
+    def mark_as_read(self):
+        """Mark this message as read"""
+        if not self.read:
+            self.read = True
+            self.save(update_fields=['read'])
+
+class Notification(models.Model):
+    notification_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_index=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='notifications', on_delete=models.CASCADE)
+    receiver = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='received_notifications', on_delete=models.CASCADE)
+    message = models.ForeignKey(Message, related_name='notifications', on_delete=models.CASCADE)
+    content = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now=True)  # Updates on every save
+
+    def __str__(self):
+        return f"Notification {self.notification_id} for {self.receiver.email} - {self.content[:50]}"
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class MessageHistory(models.Model):
+    history_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    message = models.ForeignKey(Message, related_name='edit_history', on_delete=models.CASCADE)
+    old_content = models.TextField()
+    edited_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='edited_messages', on_delete=models.SET_NULL, null=True)
+    edited_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"History for Message {self.message.message_id} - {self.edited_at}"
+
+    class Meta:
+        ordering = ['-edited_at']
 
 
 def build_message_tree(messages):

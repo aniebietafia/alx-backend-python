@@ -17,16 +17,15 @@ class ConversationAdmin(admin.ModelAdmin):
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ['message_id', 'conversation', 'sender', 'parent_message', 'sent_at', 'edited']
-    list_filter = ['sent_at', 'edited']
-    search_fields = ['message_body', 'sender__email']
-    raw_id_fields = ['parent_message']  # For better performance with large datasets
+    list_display = ['message_id', 'conversation', 'sender', 'receiver', 'parent_message', 'sent_at', 'edited', 'read']
+    list_filter = ['sent_at', 'edited', 'read']
+    search_fields = ['message_body', 'sender__email', 'receiver__email']
+    raw_id_fields = ['parent_message']
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
-            'sender', 'conversation', 'parent_message'
+            'sender', 'receiver', 'conversation', 'parent_message'
         )
-
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
