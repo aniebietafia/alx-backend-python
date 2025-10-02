@@ -1,4 +1,6 @@
 from django.db import models
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
@@ -112,7 +114,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-
+@method_decorator(cache_page(60), name='list')
 class MessageViewSet(viewsets.ModelViewSet):
     """
     ViewSet for listing and creating messages within a conversation.
