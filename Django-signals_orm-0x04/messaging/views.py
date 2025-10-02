@@ -324,90 +324,86 @@ class MessageViewSet(viewsets.ModelViewSet):
             'user_messages': serializer.data
         })
 
-
-@action(detail=False, methods=['get'], url_path='unread')
-def get_unread_messages(self, request, conversation_pk=None):
-    """
-    Get all unread messages for the current user in a specific conversation.
-    """
-    try:
-        conversation = Conversation.objects.get(
-            conversation_id=conversation_pk,
-            participants=request.user
-        )
-    except Conversation.DoesNotExist:
-        return Response(
-            {"error": "Conversation not found"},
-            status=status.HTTP_404_NOT_FOUND
-        )
-
-    # Use custom manager to get unread messages
-    unread_messages = Message.unread.unread_for_user(request.user).filter(
-        conversation=conversation
-    )
-
-    serializer = MessageSerializer(unread_messages, many=True)
-    return Response({
-        'conversation_id': str(conversation.conversation_id),
-        'unread_messages': serializer.data,
-        'unread_count': unread_messages.count()
-    })
-
-
-@action(detail=False, methods=['get'], url_path='unread-count')
-def get_unread_count(self, request, conversation_pk=None):
-    """
-    Get the count of unread messages for the current user.
-    """
-    if conversation_pk:
+    @action(detail=False, methods=['get'], url_path='unread')
+    def get_unread_messages(self, request, conversation_pk=None):
+        """
+        Get all unread messages for the current user in a specific conversation.
+        """
         try:
             conversation = Conversation.objects.get(
                 conversation_id=conversation_pk,
                 participants=request.user
             )
-            unread_count = Message.unread.unread_for_user(request.user).filter(
-                conversation=conversation
-            ).count()
         except Conversation.DoesNotExist:
             return Response(
                 {"error": "Conversation not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
-    else:
-        # Get total unread count across all conversations
-        unread_count = Message.unread.unread_count_for_user(request.user)
 
-    return Response({
-        'unread_count': unread_count
-    })
-
-
-@action(detail=False, methods=['post'], url_path='mark-read')
-def mark_messages_read(self, request, conversation_pk=None):
-    """
-    Mark messages as read for the current user.
-    """
-    message_ids = request.data.get('message_ids', [])
-
-    try:
-        conversation = Conversation.objects.get(
-            conversation_id=conversation_pk,
-            participants=request.user
-        )
-    except Conversation.DoesNotExist:
-        return Response(
-            {"error": "Conversation not found"},
-            status=status.HTTP_404_NOT_FOUND
+        # Use custom manager to get unread messages
+        unread_messages = Message.unread.unread_for_user(request.user).filter(
+            conversation=conversation
         )
 
-    # Use custom manager to mark messages as read
-    updated_count = Message.unread.mark_as_read(
-        user=request.user,
-        message_ids=message_ids if message_ids else None
-    )
+        serializer = MessageSerializer(unread_messages, many=True)
+        return Response({
+            'conversation_id': str(conversation.conversation_id),
+            'unread_messages': serializer.data,
+            'unread_count': unread_messages.count()
+        })
 
-    return Response({
-        'message': f'Marked {updated_count} messages as read',
-        'updated_count': updated_count
-    })
+    @action(detail=False, methods=['get'], url_path='unread-count')
+    def get_unread_count(self, request, conversation_pk=None):
+        """
+        Get the count of unread messages for the current user.
+        """
+        if conversation_pk:
+            try:
+                conversation = Conversation.objects.get(
+                    conversation_id=conversation_pk,
+                    participants=request.user
+                )
+                unread_count = Message.unread.unread_for_user(request.user).filter(
+                    conversation=conversation
+                ).count()
+            except Conversation.DoesNotExist:
+                return Response(
+                    {"error": "Conversation not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        else:
+            # Get total unread count across all conversations
+            unread_count = Message.unread.unread_count_for_user(request.user)
 
+        return Response({
+            'unread_count': unread_count
+        })
+
+    @action(detail=False, methods=['post'], url_path='mark-read')
+    def mark_messages_read(self, request, conversation_pk=None):
+        """
+        Mark messages as read for the current user.
+        """
+        message_ids = request.data.get('message_ids', [])
+
+        try:
+            conversation = Conversation.objects.get(
+                conversation_id=conversation_pk,
+                participants=request.user
+            )
+        except Conversation.DoesNotExist:
+            return Response(
+                {"error": "Conversation not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Use custom manager to mark messages as read
+        updated_count = Message.unread.mark_as_read(
+            user=request.user,
+            message_ids=message_ids if message_ids else None
+        )
+
+        return Response({
+            'message': f'Marked {updated_count} messages as read',
+            'updated_count': updated_count
+        })
