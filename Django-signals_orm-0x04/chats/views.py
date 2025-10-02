@@ -1,3 +1,5 @@
+from django.views.decorators.cache import cache_page
+from django.utils.decorators import method_decorator
 from rest_framework import viewsets, status, filters
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -15,9 +17,8 @@ from .pagination import MessagePagination, ConversationPagination
 
 
 class ConversationViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for listing and creating conversations.
-    """
+    """ViewSet for listing and creating conversations."""
+
     serializer_class = ConversationSerializer
     permission_classes = [IsAuthenticated, IsParticipantOfConversation]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -80,9 +81,11 @@ class ConversationViewSet(viewsets.ModelViewSet):
         return [permission() for permission in permission_classes]
 
 
+@method_decorator(cache_page(60), name='list')
 class MessageViewSet(viewsets.ModelViewSet):
     """
     ViewSet for listing and creating messages within a conversation.
+    Cache the list view for 60 seconds to improve performance.
     """
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated, IsMessageSenderOrParticipant]

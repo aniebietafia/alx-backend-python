@@ -78,6 +78,14 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20,
 }
 
+CACHES = {
+    'default':
+        {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+        }
+}
+
 # JWT Configuration
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
