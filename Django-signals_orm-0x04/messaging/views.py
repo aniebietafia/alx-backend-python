@@ -340,9 +340,18 @@ class MessageViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Use custom manager's unread_for_user method
+        # Use custom manager's unread_for_user method with additional .only() optimization
         unread_messages = Message.unread.unread_for_user(request.user).filter(
             conversation=conversation
+        ).only(
+            'message_id',
+            'message_body',
+            'sent_at',
+            'sender__email',
+            'sender__first_name',
+            'sender__last_name',
+            'conversation__conversation_id',
+            'read'
         )
 
         serializer = MessageSerializer(unread_messages, many=True)
@@ -363,10 +372,10 @@ class MessageViewSet(viewsets.ModelViewSet):
                     conversation_id=conversation_pk,
                     participants=request.user
                 )
-                # Use custom manager's unread_for_user method
+                # Use custom manager's unread_for_user method with .only() for count queries
                 unread_count = Message.unread.unread_for_user(request.user).filter(
                     conversation=conversation
-                ).count()
+                ).only('message_id').count()
             except Conversation.DoesNotExist:
                 return Response(
                     {"error": "Conversation not found"},
