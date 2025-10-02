@@ -340,9 +340,19 @@ class MessageViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Use custom manager to get unread messages
-        unread_messages = Message.unread.unread_for_user(request.user).filter(
-            conversation=conversation
+        # Use .only() to retrieve only necessary fields for optimization
+        unread_messages = Message.objects.filter(
+            conversation=conversation,
+            receiver=request.user,
+            read=False
+        ).select_related('sender', 'conversation').only(
+            'message_id',
+            'message_body',
+            'sent_at',
+            'sender__email',
+            'sender__first_name',
+            'sender__last_name',
+            'conversation__conversation_id'
         )
 
         serializer = MessageSerializer(unread_messages, many=True)
@@ -363,17 +373,22 @@ class MessageViewSet(viewsets.ModelViewSet):
                     conversation_id=conversation_pk,
                     participants=request.user
                 )
-                unread_count = Message.unread.unread_for_user(request.user).filter(
-                    conversation=conversation
-                ).count()
+                unread_count = Message.objects.filter(
+                    conversation=conversation,
+                    receiver=request.user,
+                    read=False
+                ).only('message_id').count()
             except Conversation.DoesNotExist:
                 return Response(
                     {"error": "Conversation not found"},
                     status=status.HTTP_404_NOT_FOUND
                 )
         else:
-            # Get total unread count across all conversations
-            unread_count = Message.unread.unread_count_for_user(request.user)
+            # Get total unread count across all conversations with .only()
+            unread_count = Message.objects.filter(
+                receiver=request.user,
+                read=False
+            ).only('message_id').count()
 
         return Response({
             'unread_count': unread_count
