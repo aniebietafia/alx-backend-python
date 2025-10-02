@@ -1,9 +1,12 @@
+from django.db import models
+
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Prefetch
 
 from .models import User, Conversation, Message, build_message_tree
 from .serializers import ConversationSerializer, MessageSerializer
@@ -111,17 +114,31 @@ class ConversationViewSet(viewsets.ModelViewSet):
 
 
 class MessageViewSet(viewsets.ModelViewSet):
-    # ... existing code ...
+    """
+    ViewSet for listing and creating messages within a conversation.
+    """
+    serializer_class = MessageSerializer
+    permission_classes = [IsAuthenticated, IsMessageSenderOrParticipant]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = MessageFilter
+    search_fields = ['message_body', 'sender__email', 'sender__first_name', 'sender__last_name']
+    ordering_fields = ['sent_at', 'sender__email']
+    ordering = ['sent_at']
+    pagination_class = MessagePagination
 
     def get_queryset(self):
         """
-        Filter messages by conversation_id with optimized threading queries.
+        Filter messages by conversation_id with optimized threading queries using select_related.
         """
         conversation_pk = self.kwargs.get('conversation_pk')
         if conversation_pk:
-            return Message.threaded.get_threaded_messages(
-                Conversation.objects.get(conversation_id=conversation_pk)
-            ).filter(conversation__participants=self.request.user)
+            # Use Message.objects.filter with select_related for optimization
+            return Message.objects.filter(
+                conversation__conversation_id=conversation_pk,
+                conversation__participants=self.request.user
+            ).select_related('sender', 'conversation', 'parent_message').prefetch_related(
+                'replies__sender'
+            ).order_by('sent_at')
         return Message.objects.none()
 
     @action(detail=False, methods=['get'], url_path='threaded')
@@ -140,8 +157,12 @@ class MessageViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Get all messages with optimized queries
-        messages = Message.threaded.get_threaded_messages(conversation)
+        # Get all messages with optimized queries using Message.objects.filter and select_related
+        messages = Message.objects.filter(
+            conversation=conversation
+        ).select_related('sender', 'parent_message').prefetch_related(
+            'replies__sender'
+        ).order_by('sent_at')
 
         # Build threaded structure
         threaded_messages = build_message_tree(messages)
@@ -183,10 +204,16 @@ class MessageViewSet(viewsets.ModelViewSet):
                 participants=request.user
             )
 
-            # Get the message thread
-            thread_messages = Message.threaded.get_message_with_replies(pk)
+            # Get the message thread using Message.objects.filter with select_related
+            thread_messages = Message.objects.filter(
+                message_id=pk,
+                conversation=conversation
+            ).select_related('sender', 'parent_message').prefetch_related(
+                'replies__sender',
+                'replies__replies__sender'
+            )
 
-            if not thread_messages:
+            if not thread_messages.exists():
                 return Response(
                     {"error": "Message not found"},
                     status=status.HTTP_404_NOT_FOUND
@@ -206,7 +233,7 @@ class MessageViewSet(viewsets.ModelViewSet):
                     'sent_at': message.sent_at,
                     'edited': message.edited,
                     'parent_message_id': str(message.parent_message.message_id) if message.parent_message else None,
-                    'depth': getattr(message, 'depth', message.get_thread_depth())
+                    'depth': message.get_thread_depth()
                 })
 
             return Response({
@@ -221,10 +248,11 @@ class MessageViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """
-        Enhanced create method to handle reply creation.
+        Enhanced create method to handle reply creation with sender and receiver.
         """
         conversation_pk = self.kwargs.get('conversation_pk')
         parent_message_id = self.request.data.get('parent_message_id')
+        receiver_email = self.request.data.get('receiver')
 
         try:
             conversation = Conversation.objects.get(conversation_id=conversation_pk)
@@ -233,6 +261,21 @@ class MessageViewSet(viewsets.ModelViewSet):
 
         if self.request.user not in conversation.participants.all():
             raise ValidationError("You are not a participant of this conversation.")
+
+        # Handle receiver - find the recipient user
+        receiver = None
+        if receiver_email:
+            try:
+                receiver = User.objects.get(email=receiver_email)
+                if receiver not in conversation.participants.all():
+                    raise ValidationError("Receiver is not a participant of this conversation.")
+            except User.DoesNotExist:
+                raise ValidationError("Receiver user not found.")
+        else:
+            # If no specific receiver, default to the first other participant
+            other_participants = conversation.participants.exclude(id=self.request.user.id)
+            if other_participants.exists():
+                receiver = other_participants.first()
 
         # Handle parent message if this is a reply
         parent_message = None
@@ -247,6 +290,36 @@ class MessageViewSet(viewsets.ModelViewSet):
 
         serializer.save(
             sender=self.request.user,
+            receiver=receiver,
             conversation=conversation,
             parent_message=parent_message
         )
+
+    @action(detail=False, methods=['get'], url_path='my-messages')
+    def get_user_messages(self, request, conversation_pk=None):
+        """
+        Get all messages sent by or received by the current user in a conversation.
+        """
+        try:
+            conversation = Conversation.objects.get(
+                conversation_id=conversation_pk,
+                participants=request.user
+            )
+        except Conversation.DoesNotExist:
+            return Response(
+                {"error": "Conversation not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Use Message.objects.filter to get messages where user is sender or receiver
+        user_messages = Message.objects.filter(
+            conversation=conversation
+        ).filter(
+            models.Q(sender=request.user) | models.Q(receiver=request.user)
+        ).select_related('sender', 'receiver', 'conversation').order_by('sent_at')
+
+        serializer = MessageSerializer(user_messages, many=True)
+        return Response({
+            'conversation_id': str(conversation.conversation_id),
+            'user_messages': serializer.data
+        })
