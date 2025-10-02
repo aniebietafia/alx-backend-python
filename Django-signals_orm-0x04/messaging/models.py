@@ -74,15 +74,32 @@ class Message(models.Model):
     message_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_index=True)
     conversation = models.ForeignKey(Conversation, related_name='messages', on_delete=models.CASCADE)
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='sent_messages', on_delete=models.CASCADE)
+    parent_message = models.ForeignKey('self', related_name='replies', on_delete=models.CASCADE, null=True, blank=True)
     message_body = models.TextField()
     sent_at = models.DateTimeField(auto_now_add=True)
-    edited = models.BooleanField(default=False)  # Track if message has been edited
+    edited = models.BooleanField(default=False)
+    objects = models.Manager()
+    threaded = ThreadedMessageManager()  # Custom manager for threaded messages
 
     def __str__(self):
         return f"Message {self.message_id} in Conversation {self.conversation.conversation_id} by {self.sender.email}"
 
     class Meta:
         ordering = ['sent_at']
+
+    def is_reply(self):
+        """Check if this message is a reply to another message"""
+        return self.parent_message is not None
+
+    def get_thread_depth(self):
+        """Calculate the depth of this message in the thread"""
+        depth = 0
+        current = self.parent_message
+        while current:
+            depth += 1
+            current = current.parent_message
+        return depth
+
 
 
 class Notification(models.Model):
@@ -114,3 +131,98 @@ class MessageHistory(models.Model):
 
     class Meta:
         ordering = ['-edited_at']
+
+
+class ThreadedMessageManager(models.Manager):
+    def get_threaded_messages(self, conversation):
+        """
+        Get all messages in a conversation with optimized queries for threading.
+        Uses select_related and prefetch_related for efficiency.
+        """
+        return self.select_related(
+            'sender', 'conversation', 'parent_message'
+        ).prefetch_related(
+            'replies__sender',
+            'replies__replies__sender'
+        ).filter(conversation=conversation).order_by('sent_at')
+
+    def get_root_messages(self, conversation):
+        """Get only root messages (not replies) in a conversation"""
+        return self.get_threaded_messages(conversation).filter(parent_message=None)
+
+    def get_message_with_replies(self, message_id):
+        """
+        Get a specific message with all its replies recursively.
+        Uses recursive CTE for PostgreSQL or fallback for other databases.
+        """
+        from django.db import connection
+
+        if 'postgresql' in connection.settings_dict['ENGINE']:
+            # Use recursive CTE for PostgreSQL
+            return self.raw("""
+                            WITH RECURSIVE message_tree AS (SELECT message_id,
+                                                                   conversation_id,
+                                                                   sender_id,
+                                                                   parent_message_id,
+                                                                   message_body,
+                                                                   sent_at,
+                                                                   edited,
+                                                                   0 as depth
+                                                            FROM messaging_message
+                                                            WHERE message_id = %s
+
+                                                            UNION ALL
+
+                                                            SELECT m.message_id,
+                                                                   m.conversation_id,
+                                                                   m.sender_id,
+                                                                   m.parent_message_id,
+                                                                   m.message_body,
+                                                                   m.sent_at,
+                                                                   m.edited,
+                                                                   mt.depth + 1
+                                                            FROM messaging_message m
+                                                                     INNER JOIN message_tree mt ON m.parent_message_id = mt.message_id)
+                            SELECT *
+                            FROM message_tree
+                            ORDER BY depth, sent_at
+                            """, [message_id])
+        else:
+            # Fallback for other databases - get message and prefetch replies
+            try:
+                message = self.select_related('sender', 'parent_message').prefetch_related(
+                    'replies__sender',
+                    'replies__replies__sender',
+                    'replies__replies__replies__sender'
+                ).get(message_id=message_id)
+                return [message]
+            except self.model.DoesNotExist:
+                return []
+
+
+def build_message_tree(messages):
+    """
+    Build a nested dictionary structure representing the message thread tree.
+    """
+    message_dict = {}
+    root_messages = []
+
+    # First pass: create a dictionary of all messages
+    for message in messages:
+        message_dict[str(message.message_id)] = {
+            'message': message,
+            'replies': []
+        }
+
+    # Second pass: build the tree structure
+    for message in messages:
+        if message.parent_message:
+            parent_id = str(message.parent_message.message_id)
+            if parent_id in message_dict:
+                message_dict[parent_id]['replies'].append(
+                    message_dict[str(message.message_id)]
+                )
+        else:
+            root_messages.append(message_dict[str(message.message_id)])
+
+    return root_messages

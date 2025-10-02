@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import User, Conversation, Message
+from .models import User, Conversation, Message, build_message_tree
 from .serializers import ConversationSerializer, MessageSerializer
 from .permissions import (
     IsParticipantOfConversation,
@@ -111,46 +111,142 @@ class ConversationViewSet(viewsets.ModelViewSet):
 
 
 class MessageViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for listing and creating messages within a conversation.
-    """
-    serializer_class = MessageSerializer
-    permission_classes = [IsAuthenticated, IsMessageSenderOrParticipant]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_class = MessageFilter
-    search_fields = ['message_body', 'sender__email', 'sender__first_name', 'sender__last_name']
-    ordering_fields = ['sent_at', 'sender__email']
-    ordering = ['sent_at']
-    pagination_class = MessagePagination
+    # ... existing code ...
 
     def get_queryset(self):
         """
-        Filter messages by a `conversation_id` from the URL.
-        Ensures user is a participant of the conversation.
+        Filter messages by conversation_id with optimized threading queries.
         """
         conversation_pk = self.kwargs.get('conversation_pk')
         if conversation_pk:
-            return Message.objects.filter(
-                conversation__conversation_id=conversation_pk,
-                conversation__participants=self.request.user
-            ).select_related('sender', 'conversation')
+            return Message.threaded.get_threaded_messages(
+                Conversation.objects.get(conversation_id=conversation_pk)
+            ).filter(conversation__participants=self.request.user)
         return Message.objects.none()
+
+    @action(detail=False, methods=['get'], url_path='threaded')
+    def get_threaded_view(self, request, conversation_pk=None):
+        """
+        Get messages in threaded format with optimized queries.
+        """
+        try:
+            conversation = Conversation.objects.get(
+                conversation_id=conversation_pk,
+                participants=request.user
+            )
+        except Conversation.DoesNotExist:
+            return Response(
+                {"error": "Conversation not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Get all messages with optimized queries
+        messages = Message.threaded.get_threaded_messages(conversation)
+
+        # Build threaded structure
+        threaded_messages = build_message_tree(messages)
+
+        # Serialize the threaded data
+        def serialize_thread(thread_node):
+            message = thread_node['message']
+            return {
+                'message_id': str(message.message_id),
+                'sender': {
+                    'email': message.sender.email,
+                    'first_name': message.sender.first_name,
+                    'last_name': message.sender.last_name
+                },
+                'message_body': message.message_body,
+                'sent_at': message.sent_at,
+                'edited': message.edited,
+                'parent_message_id': str(message.parent_message.message_id) if message.parent_message else None,
+                'depth': message.get_thread_depth(),
+                'replies': [serialize_thread(reply) for reply in thread_node['replies']]
+            }
+
+        serialized_data = [serialize_thread(thread) for thread in threaded_messages]
+
+        return Response({
+            'conversation_id': str(conversation.conversation_id),
+            'threaded_messages': serialized_data
+        })
+
+    @action(detail=True, methods=['get'], url_path='thread')
+    def get_message_thread(self, request, pk=None, conversation_pk=None):
+        """
+        Get a specific message and all its replies recursively.
+        """
+        try:
+            # Verify conversation access
+            conversation = Conversation.objects.get(
+                conversation_id=conversation_pk,
+                participants=request.user
+            )
+
+            # Get the message thread
+            thread_messages = Message.threaded.get_message_with_replies(pk)
+
+            if not thread_messages:
+                return Response(
+                    {"error": "Message not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Serialize the thread
+            serialized_messages = []
+            for message in thread_messages:
+                serialized_messages.append({
+                    'message_id': str(message.message_id),
+                    'sender': {
+                        'email': message.sender.email,
+                        'first_name': message.sender.first_name,
+                        'last_name': message.sender.last_name
+                    },
+                    'message_body': message.message_body,
+                    'sent_at': message.sent_at,
+                    'edited': message.edited,
+                    'parent_message_id': str(message.parent_message.message_id) if message.parent_message else None,
+                    'depth': getattr(message, 'depth', message.get_thread_depth())
+                })
+
+            return Response({
+                'thread_messages': serialized_messages
+            })
+
+        except Conversation.DoesNotExist:
+            return Response(
+                {"error": "Conversation not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
     def perform_create(self, serializer):
         """
-        Set the sender of the message to the current authenticated user.
+        Enhanced create method to handle reply creation.
         """
         conversation_pk = self.kwargs.get('conversation_pk')
+        parent_message_id = self.request.data.get('parent_message_id')
+
         try:
             conversation = Conversation.objects.get(conversation_id=conversation_pk)
         except Conversation.DoesNotExist:
             raise ValidationError("Conversation does not exist.")
 
         if self.request.user not in conversation.participants.all():
-            return Response(
-                {"error": "You are not a participant of this conversation."},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            raise ValidationError("You are not a participant of this conversation.")
 
-        serializer.save(sender=self.request.user, conversation=conversation)
-        return None
+        # Handle parent message if this is a reply
+        parent_message = None
+        if parent_message_id:
+            try:
+                parent_message = Message.objects.get(
+                    message_id=parent_message_id,
+                    conversation=conversation
+                )
+            except Message.DoesNotExist:
+                raise ValidationError("Parent message not found in this conversation.")
+
+        serializer.save(
+            sender=self.request.user,
+            conversation=conversation,
+            parent_message=parent_message
+        )
