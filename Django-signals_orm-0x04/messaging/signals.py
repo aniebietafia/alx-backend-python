@@ -8,21 +8,13 @@ from .models import Message, Notification
 def create_message_notification(sender, instance, created, **kwargs):
     """
     Signal to automatically create notifications when a new message is sent.
-    Notifies all conversation participants except the sender.
+    Creates a notification for the message receiver.
     """
-    if created: # Only act on newly created messages
-        # Get all participants in the conversation except the sender
-        participants = instance.conversation.participants.exclude(user_id=instance.sender.user_id)
-
-        notifications = []
-        for participant in participants:
-            notification = Notification(
-                user=participant,
-                message=instance,
-                content=f"New message from {instance.sender.first_name} {instance.sender.last_name}: {instance.message_body[:100]}{'...' if len(instance.message_body) > 100 else ''}"
-            )
-            notifications.append(notification)
-
-        # Bulk create notifications for efficiency
-        if notifications:
-            Notification.objects.bulk_create(notifications)
+    if created:  # Only act on newly created messages
+        # Create notification for the receiver
+        Notification.objects.create(
+            user=instance.receiver,
+            receiver=instance.receiver,
+            message=instance,
+            content=f"New message from {instance.sender.first_name} {instance.sender.last_name}: {instance.message_body[:100]}{'...' if len(instance.message_body) > 100 else ''}"
+        )
