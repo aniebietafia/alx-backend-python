@@ -55,9 +55,23 @@ def cleanup_user_data(sender, instance, **kwargs):
     This handles data cleanup that isn't automatically handled by CASCADE.
     """
     # Delete MessageHistory entries where the user was the editor
-    # (these might not be automatically deleted if the message still exists)
     MessageHistory.objects.filter(edited_by=instance).delete()
 
-    # Note: Messages, Notifications, and other related data with CASCADE foreign keys
-    # will be automatically deleted by Django when the user is deleted
-    # This signal handles any additional cleanup needed
+    # Clean up messages where the user was sender or receiver
+    # Note: This might be redundant if using CASCADE, but ensures cleanup
+    Message.objects.filter(sender=instance).delete()
+    Message.objects.filter(receiver=instance).delete()
+
+    # Clean up notifications for the user
+    Notification.objects.filter(user=instance).delete()
+    Notification.objects.filter(receiver=instance).delete()
+
+    # Clean up conversations where the user was the only participant
+    from .models import Conversation
+    for conversation in Conversation.objects.filter(participants=instance):
+        # Remove the user from the conversation
+        conversation.participants.remove(instance)
+        # If no participants left, delete the conversation
+        if conversation.participants.count() == 0:
+            conversation.delete()
+
