@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: django-app
-        image: your-dockerhub-username/django-messaging-app:v1.0  # Current version
+        image: your-dockerhub-username/django-messaging-app:v2.0  # Updated version
         ports:
         - containerPort: 8000
         env:
@@ -30,7 +30,7 @@ spec:
         - name: ALLOWED_HOSTS
           value: "*"
         - name: VERSION
-          value: "blue"
+          value: "blue-v2.0"
         resources:
           requests:
             memory: "256Mi"
