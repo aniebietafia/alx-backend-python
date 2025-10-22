@@ -2,7 +2,7 @@ pipeline {
     agent {
         docker {
             image 'python:3.9-slim'
-            args '-v /var/run/docker.sock:/var/run/docker.sock -u root' // Run as root to install packages
+            args '-v /var/run/docker.sock:/var/run/docker.sock -u root'
         }
     }
 
@@ -17,16 +17,6 @@ pipeline {
                 git branch: 'main',
                     credentialsId: 'github-credentials',
                     url: 'https://github.com/aniebietafia/alx-backend-python.git'
-            }
-        }
-
-        stage('Install Docker Client') {
-            steps {
-                // Install Docker client inside the python container
-                sh '''
-                    apt-get update
-                    apt-get install -y docker-ce-cli
-                '''
             }
         }
 
