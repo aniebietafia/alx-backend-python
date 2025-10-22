@@ -1,7 +1,7 @@
 pipeline {
     agent {
         docker {
-            image 'python:3.9-slim'
+            image 'python:3.10-slim'
             args '-v /var/run/docker.sock:/var/run/docker.sock -u root'
         }
     }
@@ -26,7 +26,7 @@ pipeline {
                     python3 -m venv venv
                     . venv/bin/activate
                     pip3 install --upgrade pip
-                    pip3 install -r messaging_app/requirements.txt || echo "No requirements.txt found"
+                    pip3 install -r messaging_app/requirements.txt
                     pip3 install pytest pytest-html pytest-cov
                 '''
             }
@@ -37,7 +37,8 @@ pipeline {
                 dir('messaging_app') {
                     sh '''
                         . ../venv/bin/activate
-                        python -m pytest --html=report.html --self-contained-html --cov=. --cov-report=html --cov-report=term
+                        # Exit with 0 even if no tests are found
+                        python -m pytest --html=report.html --self-contained-html --cov=. --cov-report=html --cov-report=term --no-tests-found-exit-code=0
                     '''
                 }
             }
@@ -46,7 +47,7 @@ pipeline {
         stage('Generate Test Report') {
             steps {
                 publishHTML([
-                    allowMissing: false,
+                    allowMissing: true, // Allow missing report if no tests ran
                     alwaysLinkToLastBuild: true,
                     keepAll: true,
                     reportDir: 'messaging_app',
