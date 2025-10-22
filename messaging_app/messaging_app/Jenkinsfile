@@ -15,9 +15,9 @@ pipeline {
                 sh '''
                     python3 -m venv venv
                     . venv/bin/activate
-                    pip install --upgrade pip
-                    pip install -r messaging_app/requirements.txt || echo "No requirements.txt found"
-                    pip install pytest pytest-html pytest-cov
+                    pip3 install --upgrade pip
+                    pip3 install -r messaging_app/requirements.txt || echo "No requirements.txt found"
+                    pip3 install pytest pytest-html pytest-cov
                 '''
             }
         }
