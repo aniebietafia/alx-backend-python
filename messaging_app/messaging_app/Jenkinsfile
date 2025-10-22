@@ -2,7 +2,7 @@ pipeline {
     agent {
         docker {
             image 'python:3.9-slim'
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
+            args '-v /var/run/docker.sock:/var/run/docker.sock -u root' // Run as root to install packages
         }
     }
 
@@ -22,7 +22,11 @@ pipeline {
 
         stage('Install Docker Client') {
             steps {
-                sh 'apt-get update && apt-get install -y docker.io'
+                // Install Docker client inside the python container
+                sh '''
+                    apt-get update
+                    apt-get install -y docker-ce-cli
+                '''
             }
         }
 
