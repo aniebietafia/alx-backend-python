@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'python:3.9-slim'
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
 
     environment {
         DOCKERHUB_CREDENTIALS_ID = 'dockerhub-credentials'
@@ -12,6 +17,12 @@ pipeline {
                 git branch: 'main',
                     credentialsId: 'github-credentials',
                     url: 'https://github.com/aniebietafia/alx-backend-python.git'
+            }
+        }
+
+        stage('Install Docker Client') {
+            steps {
+                sh 'apt-get update && apt-get install -y docker.io'
             }
         }
 
@@ -56,7 +67,6 @@ pipeline {
                 script {
                     def imageName = "${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}"
                     echo "Building Docker image: ${imageName}"
-                    // The second argument is the context path where Dockerfile is located
                     docker.build(imageName, 'messaging_app')
                 }
             }
