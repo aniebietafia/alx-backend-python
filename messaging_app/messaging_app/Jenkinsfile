@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    environment {
+        DOCKERHUB_CREDENTIALS_ID = 'dockerhub-credentials'
+        DOCKER_IMAGE_NAME = "aniebietafia/messaging-app"
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -45,6 +50,29 @@ pipeline {
                 ])
             }
         }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    def imageName = "${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}"
+                    echo "Building Docker image: ${imageName}"
+                    // The second argument is the context path where Dockerfile is located
+                    docker.build(imageName, 'messaging_app')
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    def imageName = "${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}"
+                    echo "Pushing Docker image: ${imageName}"
+                    docker.withRegistry('https://index.docker.io/v1/', DOCKERHUB_CREDENTIALS_ID) {
+                        docker.image(imageName).push()
+                    }
+                }
+            }
+        }
     }
 
     post {
@@ -52,10 +80,10 @@ pipeline {
             echo 'Pipeline execution completed'
         }
         success {
-            echo 'Tests passed successfully!'
+            echo 'Tests passed, and Docker image pushed successfully!'
         }
         failure {
-            echo 'Tests failed. Please check the report.'
+            echo 'Pipeline failed. Please check the logs and reports.'
         }
     }
 }
