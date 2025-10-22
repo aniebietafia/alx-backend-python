@@ -1,0 +1,65 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // Pull source code from GitHub
+                git branch: 'main',
+                    credentialsId: 'github-credentials',
+                    url: 'https://github.com/aniebietafia/alx-backend-python.git'
+            }
+        }
+
+        stage('Setup Python Environment') {
+            steps {
+                script {
+                    // Use ShiningPanda plugin to set up Python environment
+                    sh '''
+                        python3 -m pip install --upgrade pip
+                        pip install -r messaging_app/requirements.txt || echo "No requirements.txt found"
+                        pip install pytest pytest-html pytest-cov
+                    '''
+                }
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                dir('messaging_app') {
+                    sh '''
+                        pytest --html=report.html --self-contained-html --cov=. --cov-report=html --cov-report=term
+                    '''
+                }
+            }
+        }
+
+        stage('Generate Test Report') {
+            steps {
+                // Publish HTML test report
+                publishHTML([
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: 'messaging_app',
+                    reportFiles: 'report.html',
+                    reportName: 'Pytest Report'
+                ])
+            }
+        }
+    }
+
+    post {
+        always {
+            // Archive test results
+            junit '**/test-results/*.xml'
+            echo 'Pipeline execution completed'
+        }
+        success {
+            echo 'Tests passed successfully!'
+        }
+        failure {
+            echo 'Tests failed. Please check the report.'
+        }
+    }
+}
