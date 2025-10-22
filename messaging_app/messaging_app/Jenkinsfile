@@ -38,9 +38,16 @@ pipeline {
             steps {
                 dir('messaging_app') {
                     sh '''
+                        set +e
                         . ../venv/bin/activate
-                        # Exit with 0 even if no tests are found
-                        python -m pytest --html=report.html --self-contained-html --cov=. --cov-report=html --cov-report=term --no-tests-found-exit-code=0
+                        python -m pytest --html=report.html --self-contained-html --cov=. --cov-report=html --cov-report=term
+                        PYTEST_EXIT_CODE=$?
+                        set -e
+                        if [ $PYTEST_EXIT_CODE -eq 5 ]; then
+                            echo "Pytest exited with code 5 (No tests found). Continuing build."
+                            exit 0
+                        fi
+                        exit $PYTEST_EXIT_CODE
                     '''
                 }
             }
