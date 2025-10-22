@@ -1,15 +1,9 @@
 pipeline {
-    agent {
-        docker {
-            image 'python:3.11'
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
-        }
-    }
+    agent any
 
     stages {
         stage('Checkout') {
             steps {
-                // Pull source code from GitHub
                 git branch: 'main',
                     credentialsId: 'github-credentials',
                     url: 'https://github.com/aniebietafia/alx-backend-python.git'
@@ -18,14 +12,11 @@ pipeline {
 
         stage('Setup Python Environment') {
             steps {
-                script {
-                    // Use ShiningPanda plugin to set up Python environment
-                    sh '''
-                        python3 -m pip install --upgrade pip
-                        pip install -r messaging_app/requirements.txt || echo "No requirements.txt found"
-                        pip install pytest pytest-html pytest-cov
-                    '''
-                }
+                sh '''
+                    python3 -m pip install --upgrade pip
+                    pip install -r messaging_app/requirements.txt || echo "No requirements.txt found"
+                    pip install pytest pytest-html pytest-cov
+                '''
             }
         }
 
@@ -41,7 +32,6 @@ pipeline {
 
         stage('Generate Test Report') {
             steps {
-                // Publish HTML test report
                 publishHTML([
                     allowMissing: false,
                     alwaysLinkToLastBuild: true,
@@ -56,8 +46,6 @@ pipeline {
 
     post {
         always {
-            // Archive test results
-            junit '**/test-results/*.xml'
             echo 'Pipeline execution completed'
         }
         success {
