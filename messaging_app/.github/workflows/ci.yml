@@ -1,0 +1,76 @@
+name: Messaging App CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: test_messaging_db
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: test_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Wait for MySQL to be ready
+      run: |
+        for i in {1..30}; do
+          if mysqladmin ping -h"127.0.0.1" -P3306 --silent; then
+            echo "MySQL is ready"
+            break
+          fi
+          echo "Waiting for MySQL..."
+          sleep 2
+        done
+
+    - name: Create .env file for testing
+      run: |
+        echo "DB_NAME=test_messaging_db" >> .env
+        echo "DB_USER=test_user" >> .env
+        echo "DB_PASSWORD=test_password" >> .env
+        echo "DB_HOST=127.0.0.1" >> .env
+        echo "DB_PORT=3306" >> .env
+        echo "SECRET_KEY=test-secret-key-for-ci" >> .env
+        echo "DEBUG=True" >> .env
+
+    - name: Run migrations
+      run: |
+        python manage.py migrate --noinput
+
+    - name: Run tests
+      run: |
+        python manage.py test --verbosity=2
+
+    - name: Check code style with pycodestyle
+      run: |
+        pycodestyle --max-line-length=120 --exclude=migrations,venv .
+      continue-on-error: true
