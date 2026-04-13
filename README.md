@@ -1,5 +1,5 @@
 # ALX ProDev Backend Python Projects
-This repository contains a collection of Python projects developed as part of the ALX ProDev Backend curriculum. Each project focuses on different aspects of backend development, including web frameworks, databases, APIs, testing, and more.
+This repository contains a collection of Python projects developed as part of the ALX ProDev Backend curriculum. Each project focuses on different aspects of backend development, including web frameworks, databases, APIs, testing, Decorators and more.
 
 ## Projects Overview
 1. **Project 0: Python Generators**
